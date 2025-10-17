@@ -1,0 +1,56 @@
+# Downloaded media files
+downloads/
+*.mkv
+*.mp4
+*.avi
+*.mov
+*.m4v
+*.iso
+
+# Config directories (contain databases, logs, cache)
+config/*/
+!config/.gitkeep
+
+# Plex-specific - DO include these for migration
+!config/plex/Library/Application Support/Plex Media Server/Preferences.xml
+!config/plex/Library/Application Support/Plex Media Server/Plug-in Support/Databases/
+!config/plex/plex-backup.tar.gz
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker volumes
+volumes/
+
+# Backup files
+*.bak
+*.backup
+
+# Downloaded content
+*.torrent
+*.nzb
+
+# Cache directories
+cache/
+tmp/
+
+# API keys and secrets (if you create separate files)
+.env.local
+secrets.txt
+api_keys.txt
+
+# Personal notes
+notes.txt
+TODO.md
