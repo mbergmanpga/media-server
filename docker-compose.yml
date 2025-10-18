@@ -4,6 +4,7 @@ services:
   plex:
     image: lscr.io/linuxserver/plex:latest
     container_name: plex
+    network_mode: host
     environment:
       - PUID=1000
       - PGID=1000
@@ -15,17 +16,6 @@ services:
       - /mnt/nas/Television:/tv
       - /mnt/nas/Movies:/movies
       - /mnt/nas/Music:/music
-    ports:
-      - 32400:32400/tcp
-      - 1900:1900/udp
-      - 3005:3005/tcp
-      - 5353:5353/udp
-      - 8324:8324/tcp
-      - 32410:32410/udp
-      - 32412:32412/udp
-      - 32413:32413/udp
-      - 32414:32414/udp
-      - 32469:32469/tcp
     restart: unless-stopped
 
   sonarr:
@@ -40,7 +30,7 @@ services:
       - /mnt/nas/Television:/tv
       - ./downloads:/downloads
     ports:
-      - 8989:8989
+      - 38080:8989
     restart: unless-stopped
 
   radarr:
@@ -55,7 +45,7 @@ services:
       - /mnt/nas/Movies:/movies
       - ./downloads:/downloads
     ports:
-      - 7878:7878
+      - 38081:7878
     restart: unless-stopped
 
   lidarr:
@@ -70,7 +60,7 @@ services:
       - /mnt/nas/Music:/music
       - ./downloads:/downloads
     ports:
-      - 8686:8686
+      - 38082:8686
     restart: unless-stopped
 
   sabnzbd:
@@ -117,6 +107,38 @@ services:
     ports:
       - 9696:9696
     restart: unless-stopped
+
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    environment:
+      - TZ=America/New_York
+      - WEBPASSWORD=your_admin_password_here
+      - FTLCONF_LOCAL_IPV4=10.0.0.50
+    volumes:
+      - ./config/pihole:/etc/pihole
+      - ./config/dnsmasq.d:/etc/dnsmasq.d
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - 8053:80/tcp
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/portainer:/data
+    ports:
+      - 9000:9000
+      - 9443:9443
 
 volumes:
   plex_config:
