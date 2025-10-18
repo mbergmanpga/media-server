@@ -259,21 +259,66 @@ All services should show "Up" status.
 
 ## Migrating from Existing Server
 
-### On Old Server
+### Prepare Plex Backup on Old Server
+
+**Note:** Plex backups are stored separately from the Git repository due to their large size (typically 2-15GB).
 
 ```bash
 cd ~/media-server
 ./backup-plex.sh
-git add plex-migration/
-git commit -m "Plex backup for migration"
+
+# This creates ~/media-server/plex-migration/
+# Move it outside the git repo for transfer
+mv ~/media-server/plex-migration ~/media-server-backup/
+
+# Commit configuration changes
+git add docker-compose.yml
+git commit -m "Configuration updates"
 git push
 ```
 
-### On New Server
+### Transfer Plex Backup to New Server
+
+**Option 1: Direct Network Transfer (Recommended)**
+
+Once the Beelink is set up with Ubuntu and network connectivity:
+
+```bash
+# From old Fedora server
+scp -r ~/media-server-backup/plex-migration user@10.0.0.50:/tmp/
+
+# Or use rsync for reliability
+rsync -avz --progress ~/media-server-backup/plex-migration/ user@10.0.0.50:/tmp/plex-migration/
+```
+
+**Option 2: Via NAS (If Direct Transfer Unavailable)**
+
+```bash
+# On old server - copy to NAS
+cp -r ~/media-server-backup/plex-migration /mnt/nas/plex-backup-temp/
+
+# On new server - copy from NAS
+cp -r /mnt/nas/plex-backup-temp /opt/media-server/plex-migration/
+```
+
+**Option 3: USB Drive**
+
+```bash
+# Copy to USB drive
+cp -r ~/media-server-backup/plex-migration /media/usb-drive/
+
+# Physically move USB to new server
+# Copy from USB
+cp -r /media/usb-drive/plex-migration /opt/media-server/
+```
+
+### Restore on New Server
 
 ```bash
 cd /opt/media-server
-git pull
+
+# Make sure you have the plex-migration folder
+ls -la plex-migration/
 
 # Follow instructions in plex-migration/RESTORE_INSTRUCTIONS.md
 
@@ -489,8 +534,7 @@ Personal use only.
 
 ## Author
 
-Your Name
-
+mbergman
 ---
 
 **Last Updated**: October 2025
