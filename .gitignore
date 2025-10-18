@@ -37,7 +37,7 @@ volumes/
 # Backup files
 *.bak
 *.backup
-
+plex-migration/
 # Downloaded content
 *.torrent
 *.nzb
