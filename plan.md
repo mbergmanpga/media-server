@@ -78,6 +78,43 @@ cd /opt/media-server && git pull && docker compose up -d
 
 Each step ends with a **Test gate** checklist. **Do not start the next step until every box passes.** If a test fails, fix or roll back before moving on — the failure is cheaper to diagnose now than after layering more changes on top.
 
+### Branch strategy
+
+This work lives on the `AudioBookShelf` feature branch (already pushed to GitHub). All step commits go to that branch. After every test gate passes, we open a PR → `main`, merge with a **merge commit** (preserves per-step history, matches PR #1's style), and the server switches back to `main`.
+
+#### Pre-flight (one-time, before Step 1)
+
+The server needs to be on the same branch we're pushing to, otherwise `git pull` won't see the new commits.
+
+```bash
+# [SERVER]
+ssh mbergman@10.0.0.50
+cd /opt/media-server
+git fetch
+git checkout AudioBookShelf
+git pull
+```
+
+#### Post-merge (after Step 9's test gate passes)
+
+```bash
+# [LOCAL]
+# Open a PR AudioBookShelf → main on GitHub, merge via the GitHub UI
+
+# [SERVER]
+cd /opt/media-server
+git checkout main
+git pull
+# No `docker compose up -d` needed — main now matches the branch tip,
+# the server is already running the final state.
+
+# [LOCAL]
+git checkout main
+git pull
+git branch -d AudioBookShelf
+git push origin --delete AudioBookShelf
+```
+
 ## Port allocations
 
 | Service | Host port | Container port | Notes |
@@ -337,9 +374,15 @@ All UI work, no file changes.
 - Note the `Audiobooks/` and `Backups/audiobookshelf/` paths.
 - Note Tailscale as the remote access mechanism (host install with subnet router).
 
+[LOCAL] Move `plan.md` to `docs/` as a historical record (renamed with date prefix so future plans can sit alongside):
+```bash
+mkdir -p docs
+git mv plan.md docs/2026-06-audiobook-plan.md
+```
+
 [LOCAL] Commit + push:
 ```bash
-git add README.md AGENTS.md
+git add README.md AGENTS.md docs/2026-06-audiobook-plan.md
 git commit -m "document audiobooks stack and tailscale remote access"
 git push
 ```
