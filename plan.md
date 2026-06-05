@@ -21,7 +21,7 @@
 ## Working assumptions (flag if any are wrong)
 
 - **Image source:** stick with `lscr.io/linuxserver/*` images where available, matching the existing stack. ABS does not have an lscr.io image — we'll use the upstream `ghcr.io/advplyr/audiobookshelf:latest`.
-- **Readarr branch:** Readarr's `latest` tag has historically lagged behind `develop`. Plan uses `lscr.io/linuxserver/readarr:develop`. Worth revisiting if it proves flaky.
+- **Readarr image:** plan originally specified `lscr.io/linuxserver/readarr:develop`, but during Step 3 deploy we discovered that image is deprecated (upstream Readarr was retired) and its amd64 manifest is broken. Switched to **`hotio/readarr:nightly`** — a community-maintained drop-in replacement, same port (8787), same PUID/PGID/`/config` convention. Worth re-evaluating against **Livrarr** (a newer ebook+audiobook *arr alternative) if Readarr proves unstable.
 - **Host port allocation:** continue the `3808x` pattern from the existing *arr apps. Audiobookshelf gets its conventional `13378`.
 - **Audible metadata:** use ABS's built-in providers, which call the public `audnex.us` API. No self-hosted metadata container. Revisit only if the public API proves unreliable.
 - **Backups:** use ABS's built-in scheduled backup feature; write backups to the NAS at `/mnt/nas/Backups/audiobookshelf/` so they survive an SSD loss.
