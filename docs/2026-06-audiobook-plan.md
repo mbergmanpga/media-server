@@ -349,7 +349,7 @@ All UI work, no file changes.
 3. [BROWSER] Livrarr: add a real book (small one for test) → grab.
 4. Watch the pipeline:
    - SABnzbd shows the download.
-   - On completion, Livrarr imports to `/mnt/nas/Audiobooks/<Author>/<Book>/` (verify the exact pattern Livrarr produces — used in Step 9a).
+   - On completion, Livrarr imports to `/mnt/nas/Audiobooks/1/<Author>/<Book>/` (verify the exact pattern Livrarr produces — used in Step 9a).
    - ABS auto-scans (or trigger Library → Scan).
 
 **Test gate** (must pass before Step 8):
@@ -408,7 +408,7 @@ Once Livrarr → SAB → ABS is verified working with a real download (Step 7), 
 Before moving anything, internalize what ABS expects:
 
 - **One book per leaf folder.** ABS treats each leaf folder as one audiobook regardless of how many audio files are inside (one `.m4b`, or 24 chapter MP3s — both are "one book").
-- **Author folder at the top level** of the library root: `/mnt/nas/Audiobooks/<Author>/<Book Title>/<audio files>`. Livrarr's import shape should follow this convention too — verify in Step 9a.
+- **Author folder at the top level** of the library root: `/mnt/nas/Audiobooks/1/<Author>/<Book Title>/<audio files>`. Livrarr's import shape should follow this convention too — verify in Step 9a.
 - **No loose files at the library root.** Every audio file must live inside a book folder.
 - **Format priority:** `.m4b` (with chapters) > `.m4a` > `.mp3`. Prefer `.m4b` when you have a choice — embedded chapter markers are the whole reason ABS + Prologue beat Plex for audiobooks.
 - **Split chapter MP3s:** if a book is `01 - Intro.mp3`, `02 - Chapter 1.mp3`, etc., leave the file order intact. ABS sorts alphabetically inside a book folder and treats each file as a chapter.
@@ -452,8 +452,8 @@ If any source is a loose file like `Author - Title.m4b` sitting in a directory w
 
 ```bash
 # [SERVER] example for a single book; repeat or script per file
-sudo mkdir -p "/mnt/nas/Audiobooks/<Author>/<Book Title>"
-sudo mv "<source>/Author - Title.m4b" "/mnt/nas/Audiobooks/<Author>/<Book Title>/<Book Title>.m4b"
+sudo mkdir -p "/mnt/nas/Audiobooks/1/<Author>/<Book Title>"
+sudo mv "<source>/Author - Title.m4b" "/mnt/nas/Audiobooks/1/<Author>/<Book Title>/<Book Title>.m4b"
 ```
 
 #### 9d. Bulk copy (don't trust mv)
@@ -462,14 +462,14 @@ For each source → destination pair, use rsync with a dry-run first. Copy-then-
 
 1. [SERVER] Dry-run:
    ```bash
-   rsync -avh --dry-run "<source>/" "/mnt/nas/Audiobooks/<Author>/<Book>/"
+   rsync -avh --dry-run "<source>/" "/mnt/nas/Audiobooks/1/<Author>/<Book>/"
    ```
    Review the listed transfers before committing.
 2. [SERVER] Real copy:
    ```bash
-   sudo mkdir -p "/mnt/nas/Audiobooks/<Author>/<Book>"
-   sudo rsync -avh --progress "<source>/" "/mnt/nas/Audiobooks/<Author>/<Book>/"
-   sudo chown -R 1000:1000 "/mnt/nas/Audiobooks/<Author>"
+   sudo mkdir -p "/mnt/nas/Audiobooks/1/<Author>/<Book>"
+   sudo rsync -avh --progress "<source>/" "/mnt/nas/Audiobooks/1/<Author>/<Book>/"
+   sudo chown -R 1000:1000 "/mnt/nas/Audiobooks/1/<Author>"
    ```
 
 #### 9e. Let ABS adopt them
@@ -485,7 +485,7 @@ For each migrated source, after the book is visible and playable in ABS:
 
 1. [SERVER] Sanity-check destination matches source size:
    ```bash
-   du -sh "<source>" "/mnt/nas/Audiobooks/<Author>/<Book>/"
+   du -sh "<source>" "/mnt/nas/Audiobooks/1/<Author>/<Book>/"
    ```
 2. [SERVER] Delete source:
    ```bash
