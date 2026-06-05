@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   plex:
     image: lscr.io/linuxserver/plex:latest
@@ -106,6 +104,21 @@ services:
       - ./config/prowlarr:/config
     ports:
       - 9696:9696
+    restart: unless-stopped
+
+  readarr:
+    image: lscr.io/linuxserver/readarr:develop
+    container_name: readarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./config/readarr:/config
+      - /mnt/nas/Audiobooks:/audiobooks
+      - ./downloads:/downloads
+    ports:
+      - 38083:8787
     restart: unless-stopped
 
   pihole:
