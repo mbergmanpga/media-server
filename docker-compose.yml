@@ -117,6 +117,20 @@ services:
       - 38083:8789
     restart: unless-stopped
 
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - ./config/audiobookshelf:/config
+      - ./config/audiobookshelf-metadata:/metadata
+      - /mnt/nas/Audiobooks:/audiobooks
+      - /mnt/nas/Backups/audiobookshelf:/backups
+    ports:
+      - 13378:80
+    restart: unless-stopped
+
   pihole:
     image: pihole/pihole:latest
     container_name: pihole
