@@ -32,16 +32,22 @@ Internet → Modem → Orbi Router → Network Switch
 
 ## Network Configuration
 
-| Service | Port | URL |
-|---------|------|-----|
-| Plex | 32400 | http://10.0.0.50:32400/web |
-| Sonarr | 8989 | http://10.0.0.50:8989 |
-| Radarr | 7878 | http://10.0.0.50:7878 |
-| Lidarr | 8686 | http://10.0.0.50:8686 |
-| SABnzbd | 8080 | http://10.0.0.50:8080 |
-| qBittorrent | 8081 | http://10.0.0.50:8081 |
-| Prowlarr | 9696 | http://10.0.0.50:9696 |
-| Pi-hole | 8053 | http://10.0.0.50:8053/admin |
+| Service | Host Port | Container Port | URL |
+|---------|-----------|----------------|-----|
+| Plex | 32400 | 32400 | http://10.0.0.50:32400/web |
+| Sonarr | 38080 | 8989 | http://10.0.0.50:38080 |
+| Radarr | 38081 | 7878 | http://10.0.0.50:38081 |
+| Lidarr | 38082 | 8686 | http://10.0.0.50:38082 |
+| SABnzbd | 8080 | 8080 | http://10.0.0.50:8080 |
+| qBittorrent | 8081 | 8081 | http://10.0.0.50:8081 |
+| Prowlarr | 9696 | 9696 | http://10.0.0.50:9696 |
+| Pi-hole | 8053 | 80 | http://10.0.0.50:8053/admin |
+| Pi-hole DNS | 53 (tcp+udp) | 53 | — |
+| Portainer | 9000 / 9443 | 9000 / 9443 | http://10.0.0.50:9000 |
+
+**Note on ports:** Use the **host port** column for browser/external access. Use the **container port** column when one service references another from inside Docker (e.g., Prowlarr → Sonarr is `http://sonarr:8989`, not `:38080`, because container-to-container traffic stays on the internal bridge network).
+
+**Plex networking:** Plex runs with `network_mode: host`, so it binds all its ports (32400 plus discovery/DLNA ports) directly on the host with no Docker port mapping.
 
 ## Hardware
 
@@ -53,9 +59,14 @@ Internet → Modem → Orbi Router → Network Switch
 
 ```
 /opt/media-server/
-├── docker-compose.yml        # Service definitions
-├── .gitignore               # Git ignore rules
-├── config/                  # Application configs (not in git)
+├── docker-compose.yml        # Media stack: Plex, *arr, downloaders, Pi-hole, Portainer
+├── backup-plex.sh            # Plex metadata backup utility
+├── move-episodes.sh          # One-off migration helper (hardcoded filenames)
+├── web-server/               # Independent nginx landing page stack
+│   ├── docker-compose.yml    # Runs separately from the media stack
+│   ├── nginx.conf
+│   └── www/                  # Static HTML served on port 80
+├── config/                   # Per-service state (gitignored)
 │   ├── plex/
 │   ├── sonarr/
 │   ├── radarr/
@@ -63,13 +74,16 @@ Internet → Modem → Orbi Router → Network Switch
 │   ├── sabnzbd/
 │   ├── qbittorrent/
 │   ├── prowlarr/
-│   └── pihole/
-├── downloads/               # Temporary downloads (not in git)
-├── plex-migration/          # Plex backup for migration
-└── scripts/                 # Utility scripts
-    ├── backup-plex.sh
-    └── import-stuck-files.sh
+│   ├── pihole/
+│   ├── dnsmasq.d/            # Pi-hole dnsmasq config
+│   └── portainer/
+├── downloads/                # Shared scratch space for SAB/qBit/*arr (gitignored)
+└── plex-migration/           # Created by backup-plex.sh (gitignored)
 ```
+
+**Note:** The repo contains **two independent Compose stacks**. The root `docker-compose.yml` runs the media services; `web-server/docker-compose.yml` is a standalone nginx instance with no shared network or volumes. Bring them up from their own directories.
+
+**Script path caveat:** `backup-plex.sh` and `move-episodes.sh` hardcode `$HOME/media-server/` rather than `/opt/media-server/`. Run them from a shell where `$HOME/media-server` resolves to the deployment, or edit the paths before running.
 
 ## Storage Paths
 
@@ -176,22 +190,25 @@ cd media-server
 
 ```bash
 mkdir -p /opt/media-server/downloads
-mkdir -p /opt/media-server/config/{plex,sonarr,radarr,lidarr,sabnzbd,qbittorrent,prowlarr,pihole,dnsmasq.d}
+mkdir -p /opt/media-server/config/{plex,sonarr,radarr,lidarr,sabnzbd,qbittorrent,prowlarr,pihole,dnsmasq.d,portainer}
 mkdir -p /mnt/nas/{Television,Movies,Music}
 ```
 
 ### 6. Configure Services
 
 Edit `docker-compose.yml` and update:
-- PUID/PGID (run `id $USER` to get values)
-- Timezone (TZ)
-- Pi-hole web password (WEBPASSWORD)
+- `PUID`/`PGID` (run `id $USER` to get values; defaults are 1000/1000)
+- `TZ` (timezone, default `America/New_York`)
+- Pi-hole admin password: set `FTLCONF_webserver_api_password` on the `pihole` service (currently empty, which lets Pi-hole auto-generate a random password printed to `docker compose logs pihole`)
 
 ### 7. Start Services
 
 ```bash
 cd /opt/media-server
-docker compose up -d
+docker compose up -d                    # media stack
+
+cd /opt/media-server/web-server
+docker compose up -d                    # landing page (optional)
 ```
 
 ### 8. Verify Services
@@ -228,16 +245,16 @@ All services should show "Up" status.
 ### Prowlarr
 1. Go to http://10.0.0.50:9696
 2. Add indexers (NZBGeek, etc.)
-3. Settings → Apps → Add Applications:
-   - Add Sonarr (http://sonarr:8989)
-   - Add Radarr (http://radarr:7878)
-   - Add Lidarr (http://lidarr:8686)
+3. Settings → Apps → Add Applications. Use **container hostnames and internal ports** (Prowlarr talks over the Docker bridge network, not via host ports):
+   - Sonarr: `http://sonarr:8989`
+   - Radarr: `http://radarr:7878`
+   - Lidarr: `http://lidarr:8686`
 
 ### Sonarr/Radarr/Lidarr
-1. Go to each app's web interface
-2. Settings → Download Clients:
-   - Add SABnzbd (host: `sabnzbd`, port: 8080)
-   - Add qBittorrent (host: `qbittorrent`, port: 8081)
+1. Open each app at its host URL: Sonarr `http://10.0.0.50:38080`, Radarr `http://10.0.0.50:38081`, Lidarr `http://10.0.0.50:38082`
+2. Settings → Download Clients (use container hostnames and internal ports):
+   - SABnzbd: host `sabnzbd`, port `8080`
+   - qBittorrent: host `qbittorrent`, port `8081`
 3. Settings → Media Management:
    - Enable "Rename Episodes/Movies"
    - Set root folder (`/tv`, `/movies`, or `/music`)
@@ -245,12 +262,27 @@ All services should show "Up" status.
 
 ### Pi-hole
 1. Go to http://10.0.0.50:8053/admin
-2. Login with password from docker-compose
+2. Login with the password set via `FTLCONF_webserver_api_password` in `docker-compose.yml`. If left blank, Pi-hole generates a random password on first start — grab it with `docker compose logs pihole | grep -i password`.
 3. Settings → DNS:
    - Select upstream DNS (Cloudflare, Google, etc.)
    - Enable Conditional Forwarding:
      - Local network: `10.0.0.0/24`
      - Router IP: `10.0.0.1`
+
+### Portainer
+1. Go to http://10.0.0.50:9000 (or https://10.0.0.50:9443)
+2. Create an admin account on first visit (must be done within a few minutes of the container starting, otherwise Portainer locks itself and you'll need to restart it: `docker compose restart portainer`)
+3. Choose "Get Started" → manage the local Docker environment
+
+### Web Server (optional landing page)
+The `web-server/` directory contains a separate, standalone nginx stack that serves static HTML on host port 80. It's independent of the media stack — no shared network or volumes.
+
+```bash
+cd /opt/media-server/web-server
+docker compose up -d
+```
+
+Edit files under `web-server/www/` to change what's served.
 
 ### Router Configuration
 1. Login to Orbi router
@@ -403,7 +435,7 @@ tar -czf media-server-backup-$(date +%Y%m%d).tar.gz config/
 docker compose logs
 
 # Check if ports are in use
-sudo ss -tulpn | grep -E ':(32400|8989|7878|8686|8080|8081|9696|53)'
+sudo ss -tulpn | grep -E ':(32400|38080|38081|38082|8080|8081|9696|8053|53|9000|9443)'
 
 # Restart Docker
 sudo systemctl restart docker
@@ -470,18 +502,20 @@ docker compose logs pihole
 
 ## Utility Scripts
 
+> Both scripts hardcode `$HOME/media-server/` as the working directory. If the repo is deployed at `/opt/media-server/`, run from a user whose `$HOME/media-server` symlinks/resolves there, or edit the path constants at the top of each script.
+
 ### backup-plex.sh
-Backs up Plex metadata for migration without re-scanning library.
+Stops Plex, tars `Preferences.xml`, `Plug-in Support/Databases/`, `Media/`, and `Metadata/` into `plex-migration/backup/`, writes `RESTORE_INSTRUCTIONS.md`, then restarts Plex. Lets you move libraries to a new server without a re-scan.
 
 ```bash
 ./backup-plex.sh
 ```
 
-### import-stuck-files.sh
-Triggers all *arr apps to check for completed downloads and import them.
+### move-episodes.sh
+One-off migration helper with **hardcoded episode filenames** — not a general utility. Reads files out of `~/media-server/downloads/` and moves them to the correct `/mnt/nas/Television/...` season folders with retry logic, then fixes ownership to `1000:1000`. Read it before running; edit the filename list to match what you actually need to move.
 
 ```bash
-./import-stuck-files.sh
+./move-episodes.sh
 ```
 
 ## Performance Optimization
@@ -537,4 +571,4 @@ Personal use only.
 mbergman
 ---
 
-**Last Updated**: October 2025
+**Last Updated**: June 2026
