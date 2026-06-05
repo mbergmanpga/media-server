@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✈️ Cancun Packing Checklist</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { margin: 0; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const packingSections = [
+  {
+    id: "docs", emoji: "📄", title: "Documents & Valuables", bag: "Carry-On",
+    items: [
+      { name: "Both Passports", note: "Double-check expiry dates — need 6+ months validity!", important: true },
+      { name: "Resort Confirmation (printed)", note: "Excellence Playa Mujeres — have confirmation # ready" },
+      { name: "Flight Confirmations (printed)", note: "AA — Tue Feb 3 departure & Sat Feb 7 return" },
+      { name: "Travel Insurance Info", note: "Travel Guard policy number & claim website" },
+      { name: "Credit Cards (2+ each)", note: "Notify your bank of international travel if not done" },
+      { name: "Cash $200–$300 USD", note: "Small bills — $20s, $10s, $5s for tips & excursions" },
+      { name: "Driver's Licenses (both)", note: "Backup ID" },
+    ]
+  },
+  {
+    id: "travel", emoji: "❄️", title: "Travel Day (Charlotte = Freezing!)", bag: "Wear to Airport",
+    items: [
+      { name: "Warm Coats (both)", note: "February in Charlotte — it's cold outside!" },
+      { name: "Alyssa: Scarf & Warm Hat", note: "She runs cold — bundle her up!" },
+      { name: "Comfortable Travel Clothes (both)", note: "Wear on the plane — long flight" },
+      { name: "Snacks for the Airport", note: "Granola bars, nuts, trail mix" },
+      { name: "Empty Water Bottles (2)", note: "Fill after security checkpoint" },
+    ]
+  },
+  {
+    id: "carryon", emoji: "🎒", title: "Carry-On Backup Kit", bag: "Carry-On",
+    note: "Pack these IN your carry-on in case your checked bag gets delayed. You'll want to swim the moment you arrive!",
+    items: [
+      { name: "1 Swimsuit Each", note: "First thing you'll want at the resort!" },
+      { name: "1 Casual Outfit Each", note: "Change of clothes for first evening" },
+      { name: "Toiletries in TSA Sizes (3.4oz max)", note: "Travel-size basics in a clear 1-quart bag" },
+      { name: "Reef-Safe Sunscreen (travel size)", note: "Must be reef-safe!" },
+      { name: "All Medications", note: "NEVER put meds in checked bag — always carry on" },
+      { name: "Chargers & Power Bank", note: "See electronics section" },
+    ]
+  },
+  {
+    id: "mike-clothes", emoji: "👔", title: "Mike's Clothing", bag: "Checked Bag",
+    items: [
+      { name: "Swimsuits / Board Shorts (3)", note: "1 goes in carry-on as backup" },
+      { name: "Collared Shirts (2)", note: "Required for specialty restaurant dinners" },
+      { name: "Nice Pants / Khakis (2 pairs)", note: "Pair with collared shirts for dinners" },
+      { name: "Casual T-Shirts (2–3)", note: "Daytime & pool wear" },
+      { name: "Casual Shorts (1–2 pairs)", note: "Beach & pool days" },
+      { name: "Light Jacket or Button-Up", note: "Restaurant AC is VERY cold" },
+      { name: "Sneakers / Comfortable Shoes", note: "Wear to airport — Charlotte is freezing & possibly icy!" },
+      { name: "Loafers or Casual Dress Shoes", note: "Specialty restaurants expect closed-toe shoes with collared shirts" },
+      { name: "Flip Flops / Sandals", note: "Pool, beach, and walking around the resort" },
+      { name: "Underwear (5–6 pairs)", note: "" },
+      { name: "Socks (3–4 pairs)", note: "Travel day + a few extras" },
+    ]
+  },
+  {
+    id: "alyssa-clothes", emoji: "👗", title: "Alyssa's Clothing", bag: "Checked Bag",
+    items: [
+      { name: "Swimsuits (3)", note: "1 goes in carry-on as backup" },
+      { name: "Sundresses / Nice Outfits (2)", note: "Specialty restaurant dinners" },
+      { name: "Casual Tops (2–3)", note: "Daytime & pool wear" },
+      { name: "Shorts / Skirts (1–2)", note: "Beach & pool days" },
+      { name: "Light Cardigan or Wrap (2)", note: "She runs cold + restaurant AC is brutal" },
+      { name: "Swimsuit Cover-Ups (1–2)", note: "Walking around the resort" },
+      { name: "Flip Flops / Sandals", note: "" },
+      { name: "Underwear (5–6 pairs)", note: "" },
+    ]
+  },
+  {
+    id: "mike-toiletries", emoji: "🧴", title: "Mike's Toiletries", bag: "Checked Bag",
+    items: [
+      { name: "Deodorant", note: "" },
+      { name: "Razor + Shaving Cream / Gel", note: "" },
+      { name: "Toothbrush + Toothpaste", note: "" },
+      { name: "Body Wash", note: "" },
+      { name: "Cologne (optional)", note: "" },
+      { name: "Hair Product (if used)", note: "" },
+      { name: "Prescription Medications", note: "Original bottles! Also pack copy in carry-on." },
+    ]
+  },
+  {
+    id: "alyssa-toiletries", emoji: "💄", title: "Alyssa's Toiletries & Makeup", bag: "Checked Bag",
+    note: "Resort provides basic shampoo, conditioner & soap — but bring her favorites for comfort!",
+    items: [
+      { name: "Shampoo + Conditioner", note: "Her preferred brands" },
+      { name: "Face Wash / Cleanser", note: "" },
+      { name: "Moisturizer (Day & Night)", note: "" },
+      { name: "Other Skincare Products", note: "Whatever's in her daily routine" },
+      { name: "Foundation / Concealer", note: "" },
+      { name: "Mascara", note: "" },
+      { name: "Lipstick / Lip Gloss", note: "" },
+      { name: "Eyeliner / Eyeshadow", note: "" },
+      { name: "Blush / Bronzer / Highlighter", note: "" },
+      { name: "Makeup Brushes / Sponge", note: "" },
+      { name: "Setting Spray", note: "" },
+      { name: "Makeup Remover Wipes", note: "Great for travel" },
+      { name: "Perfume", note: "" },
+      { name: "Hair Brush / Comb", note: "" },
+      { name: "Hair Ties", note: "" },
+      { name: "Body Lotion", note: "" },
+      { name: "Feminine Hygiene Products", note: "" },
+      { name: "Razor", note: "" },
+    ]
+  },
+  {
+    id: "shared", emoji: "🧴", title: "Shared Toiletries", bag: "Checked Bag",
+    items: [
+      { name: "🚨 REEF-SAFE Sunscreen", note: "Raw Elements, Badger, or Blue Lizard. Regular sunscreen is ILLEGAL!", important: true },
+      { name: "Aloe Vera Gel", note: "Just in case of sunburn" },
+      { name: "Bug Spray", note: "Mosquitos are brutal at sunset in Cancun!" },
+      { name: "Pepto-Bismol / Imodium", note: "New water & food — better safe than sorry" },
+      { name: "Hand Sanitizer", note: "" },
+      { name: "Lip Balm with SPF (2)", note: "One for each" },
+    ]
+  },
+  {
+    id: "beach", emoji: "🏖️", title: "Beach & Pool", bag: "Checked Bag",
+    items: [
+      { name: "Sun Hats (1 each)", note: "Critical sun protection all day" },
+      { name: "Sunglasses + 1 Backup Pair", note: "Easy to lose at the beach!" },
+      { name: "Beach Tote Bag", note: "Carry gear to pool & beach" },
+      { name: "Waterproof Phone Case", note: "Optional — great protection near water" },
+    ]
+  },
+  {
+    id: "romance", emoji: "💕", title: "Romance & Anniversary", bag: "Checked Bag",
+    items: [
+      { name: "Special Gift or Card for Alyssa", note: "10 years together — make it meaningful! 🥂" },
+      { name: "Lingerie", note: "" },
+      { name: "Portable Bluetooth Speaker", note: "Perfect for the terrace & beach" },
+      { name: "Camera or Cleared Phone Storage", note: "Capture all the memories!" },
+    ]
+  },
+  {
+    id: "electronics", emoji: "📱", title: "Electronics", bag: "Carry-On",
+    note: "Mexico uses the same outlets as the US — no power adapter needed!",
+    items: [
+      { name: "Phone Chargers (2)", note: "One for each — same plugs as home" },
+      { name: "Portable Battery / Power Bank", note: "For long beach days away from outlets" },
+      { name: "Headphones / Earbuds (2)", note: "For the flight" },
+      { name: "Boarding Passes", note: "Downloaded to phone or printed" },
+    ]
+  },
+];
+
+function PackingChecklist() {
+  const [checked, setChecked] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cancun-packing-checklist");
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) { return {}; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("cancun-packing-checklist", JSON.stringify(checked));
+  }, [checked]);
+
+  const toggle = (key) => setChecked((prev) => ({ ...prev, [key]: !prev[key] }));
+  const reset = () => setChecked({});
+
+  let total = 0, done = 0;
+  packingSections.forEach((s) => s.items.forEach((_, i) => { total++; if (checked[`${s.id}-${i}`]) done++; }));
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const bagStyle = {
+    "Carry-On": { bg: "bg-sky-100", text: "text-sky-700" },
+    "Checked Bag": { bg: "bg-emerald-100", text: "text-emerald-700" },
+    "Wear to Airport": { bg: "bg-amber-100", text: "text-amber-800" },
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-teal-50 p-3">
+      <div className="max-w-xl mx-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-teal-600 to-sky-600 rounded-2xl p-5 text-white shadow-lg mb-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-xl font-bold">✈️ Cancun Packing List</h1>
+              <p className="text-teal-100 text-xs mt-0.5">Excellence Playa Mujeres • Feb 3–7, 2026</p>
+            </div>
+            <button onClick={reset} className="text-teal-200 hover:text-white text-xs border border-teal-400 hover:border-white rounded-lg px-3 py-1 transition-colors">
+              Reset All
+            </button>
+          </div>
+          <div className="mt-4">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="text-teal-100">Packing Progress</span>
+              <span className="font-bold text-white">{done} / {total} ({pct}%)</span>
+            </div>
+            <div className="w-full bg-teal-800 rounded-full h-3">
+              <div className={`h-3 rounded-full transition-all duration-500 ${pct === 100 ? "bg-yellow-300" : "bg-white"}`} style={{ width: `${pct}%` }} />
+            </div>
+            {pct === 100 && <p className="text-center text-xs mt-2 text-yellow-200 font-bold animate-pulse">🎉 All packed! Have an amazing anniversary trip!</p>}
+          </div>
+        </div>
+
+        {/* Warning */}
+        <div className="bg-red-50 border border-red-300 rounded-xl p-3.5 mb-3 flex gap-3 shadow-sm">
+          <span className="text-xl flex-shrink-0">⚠️</span>
+          <div>
+            <p className="font-bold text-red-800 text-sm">REEF-SAFE SUNSCREEN ONLY!</p>
+            <p className="text-red-600 text-xs mt-0.5">Regular chemical sunscreen is <strong>illegal</strong> in Mexico's marine protected areas. Bring <strong>Raw Elements</strong>, <strong>Badger</strong>, or <strong>Blue Lizard</strong> brands.</p>
+          </div>
+        </div>
+
+        {/* Luggage Tip */}
+        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3.5 mb-3 shadow-sm">
+          <p className="font-bold text-sky-800 text-sm">💼 Luggage Breakdown</p>
+          <p className="text-sky-700 text-xs mt-1">AA gives each passenger a <strong>free carry-on + personal item</strong> (backpack). So you have: <strong>2 carry-ons + 2 backpacks (free) + 1 checked bag.</strong> Use the backpacks for beach gear & toiletries!</p>
+        </div>
+
+        {/* Legend */}
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {Object.entries(bagStyle).map(([label, style]) => (
+            <span key={label} className={`text-xs px-2.5 py-1 rounded-full font-medium ${style.bg} ${style.text}`}>{label}</span>
+          ))}
+        </div>
+
+        {/* Sections */}
+        {packingSections.map((section) => {
+          const style = bagStyle[section.bag];
+          let sectionDone = 0;
+          section.items.forEach((_, i) => { if (checked[`${section.id}-${i}`]) sectionDone++; });
+          const sectionComplete = sectionDone === section.items.length;
+
+          return (
+            <div key={section.id} className={`bg-white rounded-xl border shadow-sm mb-3 overflow-hidden ${sectionComplete ? "border-green-300" : "border-gray-200"}`}>
+              <div className={`flex items-center justify-between px-4 py-2.5 ${sectionComplete ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"} border-b`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{section.emoji}</span>
+                  <h2 className={`font-semibold text-sm ${sectionComplete ? "text-green-700" : "text-gray-800"}`}>{section.title}{sectionComplete && " ✓"}</h2>
+                </div>
+                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${style.bg} ${style.text}`}>{section.bag}</span>
+              </div>
+
+              {section.note && (
+                <div className="mx-3 mt-2.5 p-2.5 bg-blue-50 rounded-lg border border-blue-100">
+                  <p className="text-blue-700 text-xs">💡 {section.note}</p>
+                </div>
+              )}
+
+              <div className="divide-y divide-gray-100">
+                {section.items.map((item, iIdx) => {
+                  const key = `${section.id}-${iIdx}`;
+                  const isChecked = !!checked[key];
+                  return (
+                    <div key={iIdx} onClick={() => toggle(key)} className={`flex items-start gap-3 px-4 py-2.5 cursor-pointer transition-all ${isChecked ? "bg-green-50" : "hover:bg-gray-50"}`}>
+                      <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isChecked ? "bg-green-500 border-green-500" : "border-gray-300 bg-white"}`}>
+                        {isChecked && <span className="text-white text-xs font-bold">✓</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium transition-all ${isChecked ? "line-through text-gray-400" : item.important ? "text-red-700 font-bold" : "text-gray-800"}`}>{item.name}</p>
+                        {item.note && <p className={`text-xs mt-0.5 ${isChecked ? "text-gray-400" : "text-gray-500"}`}>{item.note}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Key Info Card */}
+        <div className="bg-gradient-to-r from-teal-600 to-sky-600 rounded-xl p-4 text-white shadow-lg mt-2 mb-8">
+          <h3 className="font-bold text-sm mb-3">📋 Key Trip Info</h3>
+          <div className="space-y-2 text-xs">
+            {[["Resort","Excellence Playa Mujeres"],["Resort Phone","+52-998-872-8500"],["Depart","Tue Feb 3 • CLT → CUN"],["Return","Sat Feb 7 • CUN → CLT"],["Insurance","Travel Guard • 1-855-266-4975"],["Claim Site","claims.travelguard.com"]].map(([label, value]) => (
+              <div key={label} className="flex justify-between">
+                <span className="text-teal-200">{label}</span>
+                <span className="text-white font-medium">{value}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-3 border-t border-teal-500 text-center">
+            <p className="text-teal-100 text-xs">🥂 Happy 20th Anniversary! You both deserve this. Enjoy! 🌴</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<PackingChecklist />);
+</script>
+</body>
+</html>

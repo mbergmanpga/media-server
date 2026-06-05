@@ -113,7 +113,7 @@ services:
     container_name: pihole
     environment:
       - TZ=America/New_York
-      - WEBPASSWORD=Mik2025Bergm_!!
+      - FTLCONF_webserver_api_password=Mik2025Bergm_!!
       - FTLCONF_LOCAL_IPV4=10.0.0.50
     volumes:
       - ./config/pihole:/etc/pihole
