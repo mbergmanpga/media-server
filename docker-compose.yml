@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   plex:
     image: lscr.io/linuxserver/plex:latest
@@ -106,6 +104,31 @@ services:
       - ./config/prowlarr:/config
     ports:
       - 9696:9696
+    restart: unless-stopped
+
+  livrarr:
+    image: ghcr.io/kkodecs/livrarr:0.1.0-alpha5
+    container_name: livrarr
+    volumes:
+      - ./config/livrarr:/config
+      - /mnt/nas/Audiobooks:/books
+      - ./downloads:/downloads
+    ports:
+      - 38083:8789
+    restart: unless-stopped
+
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - ./config/audiobookshelf:/config
+      - ./config/audiobookshelf-metadata:/metadata
+      - /mnt/nas/Audiobooks:/audiobooks
+      - /mnt/nas/Backups/audiobookshelf:/backups
+    ports:
+      - 13378:80
     restart: unless-stopped
 
   pihole:

@@ -9,6 +9,8 @@ Docker-based home media server with Plex, automated downloads, and network servi
 - **Sonarr** - TV show automation and management
 - **Radarr** - Movie automation and management
 - **Lidarr** - Music automation and management
+- **Livrarr** - Audiobook (and ebook) automation, *arr-ecosystem manager
+- **Audiobookshelf** - Audiobook server for the iOS Prologue app
 - **Prowlarr** - Indexer manager for all *arr apps
 
 ### Download Clients
@@ -17,7 +19,7 @@ Docker-based home media server with Plex, automated downloads, and network servi
 
 ### Network Services
 - **Pi-hole** - Network-wide ad blocking via DNS
-- **WireGuard VPN** - Secure remote access (future)
+- **Tailscale** - Mesh VPN for secure remote access (host install, subnet router)
 
 ## Architecture
 
@@ -41,6 +43,8 @@ Internet → Modem → Orbi Router → Network Switch
 | SABnzbd | 8080 | 8080 | http://10.0.0.50:8080 |
 | qBittorrent | 8081 | 8081 | http://10.0.0.50:8081 |
 | Prowlarr | 9696 | 9696 | http://10.0.0.50:9696 |
+| Livrarr | 38083 | 8789 | http://10.0.0.50:38083 |
+| Audiobookshelf | 13378 | 80 | http://10.0.0.50:13378/audiobookshelf |
 | Pi-hole | 8053 | 80 | http://10.0.0.50:8053/admin |
 | Pi-hole DNS | 53 (tcp+udp) | 53 | — |
 | Portainer | 9000 / 9443 | 9000 / 9443 | http://10.0.0.50:9000 |
@@ -71,6 +75,9 @@ Internet → Modem → Orbi Router → Network Switch
 │   ├── sonarr/
 │   ├── radarr/
 │   ├── lidarr/
+│   ├── livrarr/              # Audiobook manager state + SQLite DB
+│   ├── audiobookshelf/       # ABS state + SQLite DB (the irreplaceable bit)
+│   ├── audiobookshelf-metadata/
 │   ├── sabnzbd/
 │   ├── qbittorrent/
 │   ├── prowlarr/
@@ -78,6 +85,8 @@ Internet → Modem → Orbi Router → Network Switch
 │   ├── dnsmasq.d/            # Pi-hole dnsmasq config
 │   └── portainer/
 ├── downloads/                # Shared scratch space for SAB/qBit/*arr (gitignored)
+│   └── audiobooks/           # SABnzbd 'audiobooks' category drop dir
+├── docs/                     # Historical planning docs
 └── plex-migration/           # Created by backup-plex.sh (gitignored)
 ```
 
@@ -91,6 +100,8 @@ Internet → Modem → Orbi Router → Network Switch
 - **TV Shows** (NAS): `/mnt/nas/Television/`
 - **Movies** (NAS): `/mnt/nas/Movies/`
 - **Music** (NAS): `/mnt/nas/Music/`
+- **Audiobooks** (NAS): `/mnt/nas/Audiobooks/` *(Livrarr writes here as `/Audiobooks/1/<Author>/<Book>/` — the `1/` is its user-namespace dir)*
+- **ABS Backups** (NAS): `/mnt/nas/Backups/audiobookshelf/` *(scheduled daily at 03:00, 14-backup retention)*
 
 ## Prerequisites
 
@@ -274,6 +285,39 @@ All services should show "Up" status.
 2. Create an admin account on first visit (must be done within a few minutes of the container starting, otherwise Portainer locks itself and you'll need to restart it: `docker compose restart portainer`)
 3. Choose "Get Started" → manage the local Docker environment
 
+### Livrarr (audiobook automation)
+1. Go to http://10.0.0.50:38083
+2. Settings → Download Clients → add **both**:
+   - SABnzbd: host `sabnzbd`, port `8080`, category `audiobooks`, API key from SABnzbd → Config → General.
+   - qBittorrent: host `qbittorrent`, port `8081`, category `audiobooks`, username/password from qBit's Web UI settings.
+3. Settings → Root Folders → add `/books` (container path; maps to `/mnt/nas/Audiobooks` on the host).
+4. Indexers → add Prowlarr at `http://prowlarr:9696` with the Prowlarr API key. Confirm at least one indexer has audiobook categories enabled.
+
+**Note about file layout:** Livrarr writes books to `/mnt/nas/Audiobooks/1/<Author>/<Book Title>/<files>`. The `1/` is its per-user namespace directory (admin = user 1). ABS scans recursively and doesn't care, but any tooling that walks the audiobook tree needs to handle the extra level.
+
+**Livrarr is alpha** (`ghcr.io/kkodecs/livrarr:0.1.0-alpha5`). We use it because Readarr is functionally dead — upstream archived 2024, LinuxServer's image is deprecated with a broken amd64 manifest, hotio archived their build June 2025. Livrarr is the only actively-maintained book manager for the *arr ecosystem.
+
+### Audiobookshelf
+1. Go to http://10.0.0.50:13378/audiobookshelf/ *(the `/audiobookshelf` suffix is required — ABS serves under that base path)*
+2. Complete the first-run wizard, create the admin user.
+3. Libraries → add library:
+   - Media Type: **Audiobook**
+   - Folder path: `/audiobooks` (container path; maps to `/mnt/nas/Audiobooks`)
+4. Settings → Item Metadata Utils → confirm **Audible** provider is enabled (calls the public `audnex.us` API; no extra container required).
+5. Settings → Backups → enable scheduled backups, path `/backups`, daily at 03:00, retain 14. Click "Create Backup Now" to verify it writes to `/mnt/nas/Backups/audiobookshelf/`.
+6. Settings → Users → your admin user → generate an API token for the Prologue iOS app.
+
+### qBittorrent gotcha for *arr-style apps
+By default qBittorrent rejects connections from other containers due to host header validation. **Tools → Options → Web UI → uncheck "Enable Host header validation"** (and optionally "Enable CSRF protection"). Safe — qBittorrent is only reachable on LAN/Tailscale, never the public internet.
+
+### Prologue (iOS audiobook player)
+1. Phone must be on Tailscale (App Store, sign into your tailnet).
+2. In Prologue, add a server:
+   - Type: Audiobookshelf
+   - URL: `http://10.0.0.50:13378/audiobookshelf` *(include the base path)*
+   - Auth: API token from the ABS step above.
+3. Library should appear within seconds. Books sync position back to ABS in real time.
+
 ### Web Server (optional landing page)
 The `web-server/` directory contains a separate, standalone nginx stack that serves static HTML on host port 80. It's independent of the media stack — no shared network or volumes.
 
@@ -288,6 +332,39 @@ Edit files under `web-server/www/` to change what's served.
 1. Login to Orbi router
 2. Set DHCP DNS server to: `10.0.0.50`
 3. This enables network-wide ad blocking via Pi-hole
+
+## Remote Access (Tailscale)
+
+The Beelink runs Tailscale on the host (not in a container) as a subnet router. Any device on the tailnet — phone on cellular, laptop at a coffee shop — can reach any service on `10.0.0.0/24` as if it were on the home LAN. No port forwarding on the router, no public exposure of any service.
+
+### Initial install on the Beelink
+
+```bash
+# Install
+curl -fsSL https://tailscale.com/install.sh | sh
+
+# Enable IP forwarding (required for subnet routing)
+echo 'net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/99-tailscale.conf
+echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
+
+# Bring it up advertising the LAN subnet
+sudo tailscale up --advertise-routes=10.0.0.0/24 --accept-routes
+# Open the printed URL, sign in, authorize the machine
+```
+
+### One-time admin console setup
+
+At https://login.tailscale.com/admin/machines, on the `media-server` machine:
+- **Approve the subnet route** for `10.0.0.0/24`.
+- **Disable key expiry** (server shouldn't have to re-auth).
+
+### Client install
+
+iOS / Android / Mac / Windows / Linux all have official apps. Sign into the same tailnet on each device. Done — `http://10.0.0.50:<port>` works from anywhere.
+
+### Known benign warning
+Tailscale will warn about `/etc/resolv.conf` being immutable (systemd-resolved owns it). This breaks MagicDNS *on the server itself* but doesn't affect anything we use; safe to ignore.
 
 ## Migrating from Existing Server
 
@@ -496,9 +573,8 @@ docker compose logs pihole
 2. Enable port forwarding: 32400 → 10.0.0.50
 3. Plex → Settings → Remote Access → Enable
 
-**For VPN (WireGuard):**
-1. Port forward 51820 → 10.0.0.50
-2. Configure WireGuard (see WireGuard docs)
+**For VPN (Tailscale):**
+See the [Remote Access (Tailscale)](#remote-access-tailscale) section above. No port forwarding needed; works through CGNAT.
 
 ## Utility Scripts
 
@@ -547,18 +623,24 @@ Intel N150 supports QuickSync hardware transcoding:
 
 ## Future Enhancements
 
-- [ ] WireGuard VPN for secure remote access
-- [ ] Automated backups to cloud storage
+- [x] ~~WireGuard VPN for secure remote access~~ — replaced by Tailscale (see Remote Access section)
+- [x] ~~Audiobook server~~ — done via Audiobookshelf + Livrarr + Prologue
+- [ ] Automated backups to cloud storage (Plex backup script + ABS NAS backups exist; no cloud yet)
 - [ ] VLAN segmentation for IoT devices
 - [ ] Monitoring with Grafana/Prometheus
 - [ ] Automated media requests (Overseerr/Ombi)
 - [ ] pfSense for advanced firewall/routing
+- [ ] Re-evaluate Livrarr maturity / consider migration when it leaves alpha
 
 ## Support & Resources
 
 - **Plex**: https://support.plex.tv
 - **Sonarr**: https://wiki.servarr.com/sonarr
 - **Radarr**: https://wiki.servarr.com/radarr
+- **Audiobookshelf**: https://www.audiobookshelf.org/docs
+- **Livrarr**: https://github.com/kkodecs/livrarr
+- **Prologue (iOS)**: https://prologue.audio/
+- **Tailscale**: https://tailscale.com/kb/
 - **Pi-hole**: https://docs.pi-hole.net
 - **Docker**: https://docs.docker.com
 
@@ -571,4 +653,4 @@ Personal use only.
 mbergman
 ---
 
-**Last Updated**: June 2026
+**Last Updated**: June 2026 — audiobook stack (Audiobookshelf + Livrarr + Prologue) and Tailscale remote access added
