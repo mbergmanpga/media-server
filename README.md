@@ -318,6 +318,49 @@ By default qBittorrent rejects connections from other containers due to host hea
    - Auth: API token from the ABS step above.
 3. Library should appear within seconds. Books sync position back to ABS in real time.
 
+### Family / multi-user access
+
+Prologue is only a client — it has no access control of its own. Access is governed by two layers underneath it:
+
+1. **Tailscale** — whether a device can reach the server (`10.0.0.50:13378`) when off the home wifi. This is the *remote* boundary only.
+2. **Audiobookshelf user accounts** — who can log in and which libraries they see. ABS is multi-user out of the box; each account gets independent listening progress, bookmarks, and offline downloads.
+
+Don't share the admin account or its API token. Create one ABS account per person, then pick the path that matches how they'll listen. **No `docker-compose.yml` or server-side changes are needed** — this is all runtime config in ABS (plus Tailscale for remote users).
+
+#### Create an ABS account per person (both paths)
+
+In the ABS web UI → **Settings → Users → Add User**:
+
+- Username + password.
+- **Account Type: `User`** (not Admin — Users can play and track progress but can't change server settings). Use `Guest` for read-only.
+- **Libraries Accessible** → grant the `Audiobooks` library. (To wall off kids' content, make a *second* library pointing at a subfolder and grant per-user, rather than filtering within one library.)
+- **`Can Download`** → enable if they should be able to cache books to their phone for offline listening.
+
+Then in Prologue on their phone: add server → Type **Audiobookshelf** → URL `http://10.0.0.50:13378/audiobookshelf` → log in with **their own username + password** (no need to hand out API tokens per person).
+
+#### Path A — Remote listener (listens away from the house)
+
+Also needs to get onto the tailnet:
+
+- Tailscale admin console → **Users → Invite**, send them an invite. They install Tailscale, sign in, and on iOS enable **Use subnet routes**. The Beelink already advertises `10.0.0.0/24` (approved), so once they accept routes they reach `10.0.0.50` from anywhere.
+- Alternatively, use Tailscale **node sharing** to share just the media-server node if you don't want them fully on your tailnet.
+
+#### Path B — LAN-only listener (listens at home, or downloads at home for offline)
+
+- **No Tailscale at all.** On home wifi they're already on `10.0.0.0/24` and reach the server directly. They only need the ABS account + Prologue pointed at the LAN URL.
+- Enable **`Can Download`** so they can cache books over wifi. The useful pattern: **download at home, then listen anywhere offline** — the download happens over the LAN, and playback afterward needs no server connection (works with no signal, no Tailscale).
+
+| | Remote listener (A) | LAN-only listener (B) |
+|---|---|---|
+| Tailscale account/invite | Yes | **No** |
+| ABS user account | Yes | Yes |
+| Prologue + LAN URL | Yes | Yes |
+| `Can Download` permission | Optional | Yes (to grab books over wifi) |
+
+**Notes:**
+- Keep **Livrarr admin-only** — it's the acquisition side (and has rough multi-user edges); family members never need it. ABS itself has no acquisition function, so let them request titles informally.
+- There is no auth layer in front of ABS other than the network itself. A LAN-only account is exactly as exposed as your wifi — fine for family, but don't hand those credentials to anyone you wouldn't give wifi to.
+
 ### Web Server (optional landing page)
 The `web-server/` directory contains a separate, standalone nginx stack that serves static HTML on host port 80. It's independent of the media stack — no shared network or volumes.
 
