@@ -59,9 +59,21 @@ cd web-server && docker compose up -d
 ## Audiobook stack gotchas
 
 - **Livrarr is alpha** (`ghcr.io/kkodecs/livrarr:0.1.0-alpha5`). We're here because Readarr was retired (upstream archived 2024) and both LinuxServer and Hotio dropped their Readarr images. Livrarr is the only actively-maintained book manager for the *arr ecosystem right now. Expect rough edges in multi-user, cover quality, and UI labels.
+- **Livrarr cover enrichment is broken** and there is no fixed release (alpha5 is the newest tag as of 2026-06). Logs loop every 5 min with `cover download failed ... SSRF: invalid URL: relative URL without a base`. This is **cosmetic** — Livrarr still grabs and moves the audio files into the library correctly; only the cover/metadata enrichment fails. Get covers from **Audiobookshelf** instead (open the book → Edit → Match → pick a provider). Don't chase the SSRF error; treat ABS as the audiobook front-end.
+- **Livrarr runs its own RSS sync** and can auto-grab audiobooks for monitored authors — same auto-fill pattern that bit the music library. If you want audiobooks manual-only too, don't monitor authors in Livrarr.
 - **Livrarr writes to `/Audiobooks/1/<Author>/<Book>/`**, not `/Audiobooks/<Author>/<Book>/`. The `1/` is its user-namespace directory (user id 1 = admin). ABS scans recursively so it doesn't care, but any tooling that walks the audiobook tree needs to account for the extra level. Legacy audiobook migration must target the `1/` path to stay consistent.
 - **Audiobookshelf serves under `/audiobookshelf` base path**, not at the URL root. URL is `http://10.0.0.50:13378/audiobookshelf/`. Same prefix is required when configuring Prologue on iOS.
 - **qBittorrent rejects connections from *arr-style apps by default** due to host-header validation. Disable "Enable Host header validation" (and optionally CSRF protection) under qBittorrent → Tools → Options → Web UI for any internal containers to connect. Safe because qBit is LAN/Tailscale-only.
+
+## Operating rules (don't silently undo)
+
+These are deliberate configuration decisions made to stop runaway auto-downloading and an import mess (diagnosed 2026-06-08). They live in per-service runtime config, **not** in this repo's compose files, so they're easy to undo by accident. Don't change them without a reason.
+
+- **Music (Lidarr) is download-on-demand only.** RSS Sync is off (`Settings → Indexers → Options → RSS Sync Interval = 0`), all artists are unmonitored, there are no Import Lists, and `autoRedownloadFailed=false`. Root cause of the original mess was 255 monitored artists + RSS pulling new releases nightly (not import lists). To grab an album: add the artist with **Monitor = None**, monitor just that album, search it. Don't re-enable RSS or add Import Lists.
+- **One root folder per app.** Sonarr `/tv`, Radarr `/movies`, Lidarr `/music`, Livrarr `/books`. **Never add `/downloads` as a root folder** — Radarr had a stray `/downloads` root that made it import movies into the download pile and falsely report library movies as missing. If a *arr app shows two root folders, that's a bug to fix.
+- **Add downloads only *through* the *arr apps**, never straight into qBittorrent. Hand-added torrents (`www.UIndex…`, `[EZTVx.to]`, `[TGx]` names are the tell) have no owning app, so nothing imports or cleans them up — they just accumulate in `/downloads`.
+- **qBittorrent needs a seed stop-condition** (`Tools → Options → BitTorrent` → ratio 1.0 / seeding-time 3 days → Pause). The *arr apps have "Remove Completed/Failed" on, but those only fire once a torrent is *finished*; without a seed limit torrents seed forever and `/downloads` never drains.
+- **`./downloads/` is a scratch/handoff dir, not a library.** Libraries live on `/mnt/nas` (different filesystem, so *arr copies rather than hardlinks). It's safe to clear `/downloads` of anything except `incomplete/` — but first confirm nothing has its *root folder* pointing there (see the Radarr gotcha above).
 
 ## Remote access
 
