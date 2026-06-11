@@ -11,6 +11,7 @@ Docker-based home media server with Plex, automated downloads, and network servi
 - **Lidarr** - Music automation and management
 - **Livrarr** - Audiobook (and ebook) automation, *arr-ecosystem manager
 - **Audiobookshelf** - Audiobook server for the iOS Prologue app
+- **Calibre-Web-Automated (CWA)** - Ebook library, web reader, and Send to Kindle
 - **Prowlarr** - Indexer manager for all *arr apps
 
 ### Download Clients
@@ -45,6 +46,7 @@ Internet → Modem → Orbi Router → Network Switch
 | Prowlarr | 9696 | 9696 | http://10.0.0.50:9696 |
 | Livrarr | 38083 | 8789 | http://10.0.0.50:38083 |
 | Audiobookshelf | 13378 | 80 | http://10.0.0.50:13378/audiobookshelf |
+| Calibre-Web-Automated | 38084 | 8083 | http://10.0.0.50:38084 |
 | Pi-hole | 8053 | 80 | http://10.0.0.50:8053/admin |
 | Pi-hole DNS | 53 (tcp+udp) | 53 | — |
 | Portainer | 9000 / 9443 | 9000 / 9443 | http://10.0.0.50:9000 |
@@ -78,6 +80,7 @@ Internet → Modem → Orbi Router → Network Switch
 │   ├── livrarr/              # Audiobook manager state + SQLite DB
 │   ├── audiobookshelf/       # ABS state + SQLite DB (the irreplaceable bit)
 │   ├── audiobookshelf-metadata/
+│   ├── calibre-web-automated/ # CWA state + settings (library DB lives on the NAS)
 │   ├── sabnzbd/
 │   ├── qbittorrent/
 │   ├── prowlarr/
@@ -85,7 +88,9 @@ Internet → Modem → Orbi Router → Network Switch
 │   ├── dnsmasq.d/            # Pi-hole dnsmasq config
 │   └── portainer/
 ├── downloads/                # Shared scratch space for SAB/qBit/*arr (gitignored)
-│   └── audiobooks/           # SABnzbd 'audiobooks' category drop dir
+│   ├── audiobooks/           # SABnzbd 'audiobooks' category drop dir
+│   ├── ebooks/               # SABnzbd 'ebooks' category drop dir
+│   └── ebook-ingest/         # CWA watch folder (imported books are consumed from here)
 ├── docs/                     # Historical planning docs
 └── plex-migration/           # Created by backup-plex.sh (gitignored)
 ```
@@ -101,7 +106,9 @@ Internet → Modem → Orbi Router → Network Switch
 - **Movies** (NAS): `/mnt/nas/Movies/`
 - **Music** (NAS): `/mnt/nas/Music/`
 - **Audiobooks** (NAS): `/mnt/nas/Audiobooks/` *(Livrarr writes here as `/Audiobooks/1/<Author>/<Book>/` — the `1/` is its user-namespace dir)*
+- **Ebooks** (NAS): `/mnt/nas/Ebooks/` *(CWA library; holds `metadata.db` + organized `<Author>/<Title>/` files)*
 - **ABS Backups** (NAS): `/mnt/nas/Backups/audiobookshelf/` *(scheduled daily at 03:00, 14-backup retention)*
+- **CWA Backups** (NAS): `/mnt/nas/Backups/calibre-web-automated/`
 
 ## Prerequisites
 
@@ -200,9 +207,10 @@ cd media-server
 ### 5. Create Required Directories
 
 ```bash
-mkdir -p /opt/media-server/downloads
-mkdir -p /opt/media-server/config/{plex,sonarr,radarr,lidarr,sabnzbd,qbittorrent,prowlarr,pihole,dnsmasq.d,portainer}
-mkdir -p /mnt/nas/{Television,Movies,Music}
+mkdir -p /opt/media-server/downloads/{ebooks,ebook-ingest}
+mkdir -p /opt/media-server/config/{plex,sonarr,radarr,lidarr,livrarr,audiobookshelf,audiobookshelf-metadata,calibre-web-automated,sabnzbd,qbittorrent,prowlarr,pihole,dnsmasq.d,portainer}
+mkdir -p /mnt/nas/{Television,Movies,Music,Audiobooks,Ebooks}
+mkdir -p /mnt/nas/Backups/{audiobookshelf,calibre-web-automated}
 ```
 
 ### 6. Configure Services
@@ -668,6 +676,7 @@ Intel N150 supports QuickSync hardware transcoding:
 
 - [x] ~~WireGuard VPN for secure remote access~~ — replaced by Tailscale (see Remote Access section)
 - [x] ~~Audiobook server~~ — done via Audiobookshelf + Livrarr + Prologue
+- [ ] Ebook library + Send to Kindle — in progress via Calibre-Web-Automated (see `docs/2026-06-ebook-plan.md`)
 - [ ] Automated backups to cloud storage (Plex backup script + ABS NAS backups exist; no cloud yet)
 - [ ] VLAN segmentation for IoT devices
 - [ ] Monitoring with Grafana/Prometheus
@@ -682,6 +691,7 @@ Intel N150 supports QuickSync hardware transcoding:
 - **Radarr**: https://wiki.servarr.com/radarr
 - **Audiobookshelf**: https://www.audiobookshelf.org/docs
 - **Livrarr**: https://github.com/kkodecs/livrarr
+- **Calibre-Web-Automated**: https://github.com/crocodilestick/Calibre-Web-Automated
 - **Prologue (iOS)**: https://prologue.audio/
 - **Tailscale**: https://tailscale.com/kb/
 - **Pi-hole**: https://docs.pi-hole.net
@@ -696,4 +706,4 @@ Personal use only.
 mbergman
 ---
 
-**Last Updated**: June 2026 — audiobook stack (Audiobookshelf + Livrarr + Prologue) and Tailscale remote access added
+**Last Updated**: June 2026 — added Calibre-Web-Automated ebook stack (library, web reader, Send to Kindle); audiobook stack (Audiobookshelf + Livrarr + Prologue) and Tailscale remote access added earlier
