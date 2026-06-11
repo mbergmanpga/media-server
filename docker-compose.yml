@@ -131,6 +131,21 @@ services:
       - 13378:80
     restart: unless-stopped
 
+  calibre-web-automated:
+    image: crocodilestick/calibre-web-automated:latest
+    container_name: calibre-web-automated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./config/calibre-web-automated:/config
+      - /mnt/nas/Ebooks:/calibre-library
+      - ./downloads/ebook-ingest:/cwa-book-ingest
+    ports:
+      - 38084:8083
+    restart: unless-stopped
+
   pihole:
     image: pihole/pihole:latest
     container_name: pihole
