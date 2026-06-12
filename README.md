@@ -72,6 +72,10 @@ Internet → Modem → Orbi Router → Network Switch
 │   ├── docker-compose.yml    # Runs separately from the media stack
 │   ├── nginx.conf
 │   └── www/                  # Static HTML served on port 80
+│       ├── index.html        # Mobile dashboard / directory of all services
+│       ├── manifest.webmanifest  # Add-to-Home-Screen metadata
+│       ├── icon.svg          # Home-screen app icon
+│       └── checklist.html    # Misc one-off page
 ├── config/                   # Per-service state (gitignored)
 │   ├── plex/
 │   ├── sonarr/
@@ -378,6 +382,8 @@ docker compose up -d
 ```
 
 Edit files under `web-server/www/` to change what's served.
+
+**Dashboard (`www/index.html`):** A mobile-friendly directory of every service, reachable at `http://10.0.0.50/` (port 80). It's a single self-contained HTML file — no build step, no CDN dependencies, works offline once cached. The service list lives in the `groups` array near the bottom of the file; add or rename a tile by editing that array (host is set once via the `HOST` constant). On a phone, open `http://10.0.0.50/` over Tailscale/LAN and use **Add to Home Screen** — `manifest.webmanifest` + `icon.svg` make it launch full-screen with its own icon. The older `checklist.html` is linked from the dashboard footer.
 
 ### Router Configuration
 1. Login to Orbi router
